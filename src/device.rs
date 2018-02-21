@@ -190,6 +190,7 @@ fn optional_string_arg<S: Into<Vec<u8>>>(opstr: Option<S>) -> CString {
     match opstr {
         Some(s) => CString::new(s).expect("Optional arg string contains null"),
         None => CString::new("").unwrap(),
+    }
 }
 
 /// Enumerate a list of available devices on the system.
