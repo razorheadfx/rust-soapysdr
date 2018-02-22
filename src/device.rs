@@ -186,9 +186,9 @@ unsafe fn list_result<T: Copy, F: FnOnce(*mut usize) -> *mut T>(f: F) -> Result<
     Ok(ret)
 }
 
-fn optional_string_arg<S: Into<Vec<u8>>>(opstr: Option<S>) -> CString {
-    match opstr {
-        Some(s) => CString::new(s).expect("Optional arg string contains null"),
+fn optional_string_arg<S: AsRef<str>>(optstr: Option<S>) -> CString {
+    match optstr {
+        Some(s) => CString::new(s.as_ref()).expect("Optional arg string contains null"),
         None => CString::new("").unwrap(),
     }
 }
@@ -751,9 +751,9 @@ impl Device {
     /// Check whether there is a given hardware time source.
     /// Hardware time sources are not the same as time sources (at least for UHD Devices)
     /// UHD supported hw time sources: "PPS" or "" (i.e. None)
-    pub fn has_hardware_time<S: Into<Vec<u8>>>(
+    pub fn has_hardware_time(
         &self,
-        hw_time_source: Option<S>,
+        hw_time_source: Option<&str>,
     ) -> Result<bool, Error> {
         let hw_time_source = optional_string_arg(hw_time_source);
         unsafe {
@@ -763,9 +763,9 @@ impl Device {
     }
 
     /// Get the current timestamp in ns
-    pub fn get_hardware_time<S: Into<Vec<u8>>>(
+    pub fn get_hardware_time(
         &self,
-        hw_time_source: Option<S>,
+        hw_time_source: Option<&str>,
     ) -> Result<i64, Error> {
         let hw_time_source = optional_string_arg(hw_time_source);
         unsafe {
@@ -776,9 +776,9 @@ impl Device {
 
     /// Set the current hardware timestmap for the given source
     /// UHD supported hardware times: "CMD","PPS","UNKNOWN_PPS"
-    pub fn set_hardware_time<S: Into<Vec<u8>>>(
+    pub fn set_hardware_time(
         &self,
-        hw_time_source: Option<S>,
+        hw_time_source: Option<&str>,
         new_time_ns: i64,
     ) -> Result<(), Error> {
         let hw_time_source = optional_string_arg(hw_time_source);
