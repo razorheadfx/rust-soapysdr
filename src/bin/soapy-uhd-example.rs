@@ -109,7 +109,7 @@ fn run(conf: &Conf) -> Result<(), soapysdr::Error> {
 
     run_check!("Continuous RX", check_continuous_reception(&mut d, &conf));
 
-    run_check!("Burst RX", check_burst_reception(&mut d, &conf));
+    //run_check!("Burst RX", check_burst_reception(&mut d, &conf));
 
     run_check!("Continuous TX", check_continuous_transmission(&mut d, &conf));
 
@@ -226,11 +226,11 @@ fn check_continuous_reception(
     );
 
     d.set_gain(dir, channel, conf.gain).expect("Failed to set gain");
-    let bw = d.gain(dir, channel).expect("Failed to retrieve gain");
-    println!("\tTarget bandwidth: {:.3}MHz, actual: {:.3}MHz, deviation {:.3}MHz",
-        conf.bw,
-        bw,
-        bw-conf.bw
+    let gain = d.gain(dir, channel).expect("Failed to retrieve gain");
+    println!("\tTarget bandwidth: {}dB, actual: {}dB, deviation {}dB",
+        conf.gain,
+        gain,
+        gain-conf.gain
     );
 
     // open the channel for reading
@@ -251,18 +251,19 @@ fn check_continuous_reception(
     // activate the stream and read some samples
     println!("\tActivating stream and reading samples for {}s",conf.dur);
 
-    let mut rx_ed = 0usize;
+    let mut rx_acc = 0usize;
 
     rx.activate(None).expect("Failed to activate the stream");
     while start.elapsed().unwrap() < dur{
-        rx_ed += rx.read(&[&mut rx_samples], 100_000_000)
+        let rx_ed = rx.read(&[&mut rx_samples], 100_000_000)
             .expect("Failed to read samples");
         assert_eq!(rx_ed, mtu);
+	rx_acc+=rx_ed;
     }
     // deactivate the stream
     rx.deactivate(None).expect("Failed to deactivate stream");
     
-    println!("\tDone, stream deactivated after reading {} samples",rx_ed);    
+    println!("\tDone, stream deactivated after reading {} samples",rx_acc);    
 
     Ok(())
 
