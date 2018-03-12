@@ -22,10 +22,15 @@ log = { version = "0.3", optional = true }
 byteorder = { version = "1.1", optional = true }
 getopts = { version = "0.2.4", optional = true }
 signalbool = { version = "0.2.0", optional = true }
+structopt = { version = "0.1.7", optional = true }
+structopt-derive = { version = "0.1.6", optional = true }
+rand = { version = "0.4.2", optional = true }
+
 
 [features]
-default = ["log"]
+default = ["log","examples"]
 binaries = ["byteorder", "getopts", "signalbool"]
+examples = ["rand","structopt","structopt-derive","rand"]
 
 [[bin]]
 name = "soapy-sdr-info"
@@ -36,3 +41,8 @@ required-features = ["binaries"]
 name = "soapy-sdr-stream"
 path = "src/bin/soapy-sdr-stream.rs"
 required-features = ["binaries"]
+
+[[bin]]
+name = "soapy-uhd-example"
+path = "src/bin/soapy-uhd-example.rs"
+required-features = ["examples"]
