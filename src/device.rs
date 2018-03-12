@@ -890,25 +890,55 @@ impl<'a, E: StreamSample> RxStream<'a, E> {
     ///
     /// # Panics
     ///  * If `buffers` is not the same length as the `channels` array passed to `Device::rx_stream`.
-    pub fn read(&mut self, buffers: &[&mut[E]], timeout_us: i64) -> Result<usize, Error> {
+    pub fn read(&mut self, buffers: &[&mut[E]], at_ns: Option<i64>, end_burst: bool, timeout_us: i64) -> Result<usize, Error> {
         unsafe {
-            assert!(buffers.len() == self.nchannels);
+            assert_eq!(buffers.len(), self.nchannels, "Number of buffers must equal number of channels on stream");
 
             let num_samples = buffers.iter().map(|b| b.len()).min().unwrap_or(0);
 
             //TODO: avoid this allocation
             let buf_ptrs = buffers.iter().map(|b| b.as_ptr()).collect::<Vec<_>>();
 
-            self.flags = 0;
+            let mut flags = 0;
+
+            if at_ns.is_some(){
+                flags |= SOAPY_SDR_HAS_TIME as i32;
+            }
+            if end_burst{
+                flags |= SOAPY_SDR_END_BURST as i32;
+            }
+
+            // get a timestamp
+            let mut t = at_ns.clone().unwrap_or(0);
+
             let len = len_result(SoapySDRDevice_readStream(
                 self.device.ptr,
                 self.handle,
                 buf_ptrs.as_ptr() as *const *const _,
                 num_samples,
-                &mut self.flags as *mut _,
-                &mut self.time_ns as *mut _,
+                &mut flags as *mut _,
+                &mut t as *mut _,
                 timeout_us
             ))?;
+
+            match at_ns{
+                Some(ts) => {
+                    if ts == t{
+                        debug!("RX Timestamp was not updated");
+                    }
+                    else{
+                        debug!("RX Timestamp was updated from {} to {}",ts, t);
+                    }
+                },
+                None => {
+                    if t == 0{
+                        debug!("RX Timestamp 0 was not updated");
+                    }else{
+                        debug!("RX Timestamp 0 was updated to {}", t)
+                    }
+                }
+            }
+
 
             Ok(len as usize)
         }
