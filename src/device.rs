@@ -82,6 +82,41 @@ impl ::std::error::Error for Error {
     }
 }
 
+
+/// Indicator for stream status and certain stream error cases
+/// associated with `RxStream::read` and `TxStream::write`.
+/// Usually provided in the context of RxStatus 
+#[repr(u32)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug, Hash)]
+pub enum StreamCode {
+    EndOfBurst = 2,
+    HasTime = 4,
+    EndAbrupt = 8,
+    OnePacket = 16,
+    MoreFragments = 32,
+    WaitTrigger = 64,
+}
+
+impl StreamCode {
+    /// checks this value against an i32 flag
+    pub fn is_set(&self, flag: i32) -> bool {
+        (*self as i32 & flag) == *self as i32
+    }
+
+    /// iterator over all variants of `StreamCode`
+    pub fn variants() -> slice::Iter<'static, StreamCode> {
+        static VARIANTS: [StreamCode; 6] = [
+            StreamCode::EndOfBurst,
+            StreamCode::HasTime,
+            StreamCode::EndAbrupt,
+            StreamCode::OnePacket,
+            StreamCode::MoreFragments,
+            StreamCode::WaitTrigger,
+        ];
+        VARIANTS.into_iter()
+    }
+}
+
 /// Transmit or Receive
 #[repr(u32)]
 #[derive(Copy, Clone, Eq, PartialEq, Debug, Hash)]
@@ -366,8 +401,7 @@ impl Device {
                 device: self,
                 handle: stream,
                 nchannels: channels.len(),
-                flags: 0,
-                time_ns: 0,
+                has_time: self.has_hardware_time(None).unwrap_or(false),
                 active: false,
                 phantom: PhantomData,
             })
@@ -820,8 +854,7 @@ pub struct RxStream<'a, E: StreamSample> {
     device: &'a Device,
     handle: *mut SoapySDRStream,
     nchannels: usize,
-    flags: i32,
-    time_ns: i64,
+    has_time : bool,
     active: bool,
     phantom: PhantomData<fn(&mut[E])>,
 }
@@ -890,7 +923,7 @@ impl<'a, E: StreamSample> RxStream<'a, E> {
     ///
     /// # Panics
     ///  * If `buffers` is not the same length as the `channels` array passed to `Device::rx_stream`.
-    pub fn read(&mut self, buffers: &[&mut[E]], timeout_us: i64) -> Result<usize, Error> {
+    pub fn read(&mut self, buffers: &[&mut[E]], at_ns : Option<i64>, end_burst: bool, timeout_us: i64) -> Result<RxStatus, Error> {
         unsafe {
             assert!(buffers.len() == self.nchannels);
 
@@ -899,21 +932,99 @@ impl<'a, E: StreamSample> RxStream<'a, E> {
             //TODO: avoid this allocation
             let buf_ptrs = buffers.iter().map(|b| b.as_ptr()).collect::<Vec<_>>();
 
-            self.flags = 0;
-            let len = len_result(SoapySDRDevice_readStream(
+            let mut flags = 0i32;
+            if end_burst{
+                flags |= SOAPY_SDR_END_BURST as i32;
+            }
+
+            // the has_time might be removed if we decide we want the user to do these checks herself
+            if at_ns.is_some() && self.has_time{
+                flags |= SOAPY_SDR_HAS_TIME as i32;
+            }
+
+            // decouples the input timestamp from the state changed by the driver
+            let mut time_ns = at_ns.clone().unwrap_or(0);
+
+            let samples = len_result(SoapySDRDevice_readStream(
                 self.device.ptr,
                 self.handle,
                 buf_ptrs.as_ptr() as *const *const _,
                 num_samples,
-                &mut self.flags as *mut _,
-                &mut self.time_ns as *mut _,
+                flags as *mut _,
+                &mut time_ns as *mut _,
                 timeout_us
             ))?;
 
-            Ok(len as usize)
+            // we have 6 cases here: 
+            //  no at_ns provided i.e. input=0:
+            //  1./2.   output == 0 => driver did not change input
+            //                         OR cleared it                                    
+            //  3.      output != 0 => driver changed the input to the actual reception timestamp
+            //                     (what UHD does)
+            //
+            //  at_ns provided i.e. input != 0
+            //  4./5.   output == input => driver did not change the timestamp 
+            //                             OR the driver managed to receive at the exact moment in time
+            //  6.      output != input => driver updated the timestamp to the actual reception timestamp
+
+            match at_ns{
+                None => {
+                    if time_ns != 0{
+                        debug!("Driver updated timestamp from 0 to {}", time_ns)
+                    }else{
+                        debug!("Driver did not change timestamp or set it to 0")
+                    }
+                },
+                Some(input) => {
+                    if input == time_ns{
+                        debug!("Driver did not update timestamp or received at exact moment {}",time_ns)
+                    }
+                    else{
+                        debug!("Driver updated timestamp from {} to {}", input, time_ns)
+                    }
+                }
+            }
+
+
+            let time_ns = if self.has_time{
+                Some(time_ns)
+            }else{
+                None
+            };
+            let samples = samples as usize;
+
+            Ok(RxStatus{
+                samples,
+                time_ns,
+                flags
+            })
         }
     }
 
+}
+
+/// Wraps for `read` related metadata such as indicator flags and timestamps
+pub struct RxStatus {
+    /// Number of samples read from the stream
+    pub samples: usize,
+    /// Timestamp associated with this reception
+    pub time_ns: Option<i64>,
+    /// The last flags associated with the read call
+    pub flags: i32,
+}
+
+impl RxStatus {
+    /// Checks whether a certain StreamCode is set on the flags
+    pub fn has_code(&self, code: StreamCode) -> bool {
+        code.is_set(self.flags)
+    }
+    /// Returns all set StreamCodes
+    pub fn all_codes(&self) -> Vec<StreamCode> {
+        StreamCode::variants()
+            .filter(|c| c.is_set(self.flags))
+            .map(|c| *c)
+            .collect()
+    }
 }
 
 /// A stream open for transmitting.
