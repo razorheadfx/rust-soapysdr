@@ -930,6 +930,8 @@ impl<'a, E: StreamSample> RxStream<'a, E> {
             let num_samples = buffers.iter().map(|b| b.len()).min().unwrap_or(0);
 
             //TODO: avoid this allocation
+            //e.g. stack allocate an array of cap 4 with uninitialized pointers, which are overwritten
+            //the whole shebang is then sliced depending on how many channels we're actually using
             let buf_ptrs = buffers.iter().map(|b| b.as_ptr()).collect::<Vec<_>>();
 
             let mut flags = 0i32;
@@ -950,7 +952,7 @@ impl<'a, E: StreamSample> RxStream<'a, E> {
                 self.handle,
                 buf_ptrs.as_ptr() as *const *const _,
                 num_samples,
-                flags as *mut _,
+                &mut flags as *mut _,
                 &mut time_ns as *mut _,
                 timeout_us
             ))?;
