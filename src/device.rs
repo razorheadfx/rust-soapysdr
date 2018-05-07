@@ -1251,46 +1251,50 @@ impl<'a, E: StreamSample> RxStream<'a, E> {
                 timeout_us,
             ))?;
 
-            // we have 6 cases here:
-            //  no at_ns provided i.e. input=0:
-            //  1./2.   output == 0 => driver did not change input
-            //                         OR cleared it
-            //  3.      output != 0 => driver changed the input to the actual reception timestamp
-            //                     (what UHD does)
-            //
-            //  at_ns provided i.e. input != 0
-            //  4./5.   output == input => driver did not change the timestamp
-            //                             OR the driver managed to receive at the exact moment in time
-            //  6.      output != input => driver updated the timestamp to the actual reception timestamp
-
-            match at_ns {
-                None => {
-                    if time_ns != 0 {
-                        debug!("Driver updated timestamp from 0 to {}", time_ns)
-                    } else {
-                        debug!("Driver did not change timestamp or set it to 0")
-                    }
-                }
-                Some(input) => {
-                    if input == time_ns {
-                        debug!(
-                            "Driver did not update timestamp or received at exact moment {}",
-                            time_ns
-                        )
-                    } else {
-                        debug!("Driver updated timestamp from {} to {}", input, time_ns)
-                    }
-                }
-            }
-
-            let samples = samples as usize;
-
             Ok(RxStatus {
-                samples,
+                samples: samples as usize,
                 time_ns,
                 flags,
             })
         }
+    }
+
+    pub fn read_all(
+        &mut self,
+        buffers: &mut [&mut [E]],
+        at_ns: Option<i64>,
+        timeout_us: i64,
+    ) -> Result<RxStatus, Error> {
+        let to_read = buffers.iter().map(|b| b.len()).max().unwrap();
+        let mut at_first = 0i64;
+        let mut lastflags = 0i32;
+        let mut i = 0;
+        let mut read = 0;
+
+        let mut t = at_ns.clone();
+
+        while read < to_read {
+            let buffrs = buffers
+                .iter_mut()
+                .map(|b| &mut b[read..])
+                .collect::<Vec<&mut [E]>>();
+
+            let rx_s = self.read(buffrs.as_slice(), t.take(), true, timeout_us)?;
+
+            if i == 0 {
+                at_first = rx_s.time_ns;
+            }
+
+            i += 1;
+            read += rx_s.samples;
+            lastflags = rx_s.flags;
+        }
+
+        Ok(RxStatus {
+            samples: read,
+            time_ns: at_first,
+            flags: lastflags,
+        })
     }
 }
 
@@ -1308,6 +1312,15 @@ impl RxStatus {
     /// Checks whether a certain StreamCode is set on the flags
     pub fn has_code(&self, code: StreamCode) -> bool {
         code.is_set(self.flags)
+    }
+
+    /// Returns all set StreamCodes
+    /// Debugging helper
+    pub fn all_codes(&self) -> Vec<StreamCode> {
+        StreamCode::variants()
+            .filter(|c| c.is_set(self.flags))
+            .map(|c| *c)
+            .collect()
     }
 }
 
