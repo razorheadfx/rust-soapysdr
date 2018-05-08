@@ -1172,7 +1172,24 @@ impl<'a, E: StreamSample> RxStream<'a, E> {
         }
     }
 
-    // TODO: activate_burst()
+    pub fn activate_burst(&mut self, time_ns : Option<i64>, num_samples : usize) -> Result<(), Error>{
+        // FIXME : does not change the self.active as it assumes the stream deactivates after num_samples are read
+        unsafe {
+            let flags = if time_ns.is_some() {
+                SOAPY_SDR_HAS_TIME as i32
+            } else {
+                0
+            };
+            check_ret_error(SoapySDRDevice_activateStream(
+                self.device.ptr,
+                self.handle,
+                flags,
+                time_ns.unwrap_or(0),
+                num_samples,
+            ))?;
+            Ok(())
+        }
+    }
 
     /// Deactivate a stream.
     /// The implementation will control switches or halt data flow.
@@ -1386,6 +1403,25 @@ impl<'a, E: StreamSample> TxStream<'a, E> {
                 0,
             ))?;
             self.active = true;
+            Ok(())
+        }
+    }
+
+    pub fn activate_burst(&mut self, time_ns : Option<i64>, num_samples : usize) -> Result<(), Error>{
+        // FIXME : does not change the self.active as it assumes the stream deactivates after num_samples are read
+        unsafe {
+            let flags = if time_ns.is_some() {
+                SOAPY_SDR_HAS_TIME as i32
+            } else {
+                0
+            };
+            check_ret_error(SoapySDRDevice_activateStream(
+                self.device.ptr,
+                self.handle,
+                flags,
+                time_ns.unwrap_or(0),
+                num_samples,
+            ))?;
             Ok(())
         }
     }
