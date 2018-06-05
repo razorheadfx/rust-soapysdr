@@ -1172,7 +1172,11 @@ impl<'a, E: StreamSample> RxStream<'a, E> {
         }
     }
 
-    pub fn activate_burst(&mut self, time_ns : Option<i64>, num_samples : usize) -> Result<(), Error>{
+    pub fn activate_burst(
+        &mut self,
+        time_ns: Option<i64>,
+        num_samples: usize,
+    ) -> Result<(), Error> {
         // FIXME : does not change the self.active as it assumes the stream deactivates after num_samples are read
         unsafe {
             let flags = if time_ns.is_some() {
@@ -1261,7 +1265,7 @@ impl<'a, E: StreamSample> RxStream<'a, E> {
             let samples = len_result(SoapySDRDevice_readStream(
                 self.device.ptr,
                 self.handle,
-                buf_ptrs.as_ptr() as *const *const _,
+                buf_ptrs.as_ptr() as *const *mut _,
                 num_samples,
                 &mut flags as *mut _,
                 &mut time_ns as *mut _,
@@ -1407,7 +1411,11 @@ impl<'a, E: StreamSample> TxStream<'a, E> {
         }
     }
 
-    pub fn activate_burst(&mut self, time_ns : Option<i64>, num_samples : usize) -> Result<(), Error>{
+    pub fn activate_burst(
+        &mut self,
+        time_ns: Option<i64>,
+        num_samples: usize,
+    ) -> Result<(), Error> {
         // FIXME : does not change the self.active as it assumes the stream deactivates after num_samples are read
         unsafe {
             let flags = if time_ns.is_some() {
