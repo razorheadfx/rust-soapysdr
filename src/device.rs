@@ -1089,7 +1089,26 @@ impl Device {
         }
     }
 
-    // TODO: clocking
+    /// Get ranges of valid master clock rates
+    pub fn get_master_clock_range(&self) -> Result<Vec<Range>, Error> {
+        unsafe { list_result(|len_ptr| SoapySDRDevice_getMasterClockRates(self.ptr, len_ptr)) }
+    }
+
+    /// Get current master clock rate in Hz
+    pub fn get_master_clock_rate(&self) -> Result<f64, Error> {
+        unsafe {
+            let rate = SoapySDRDevice_getMasterClockRate(self.ptr);
+            check_error(rate)
+        }
+    }
+
+    /// Set the master clock rate to the given value in Hz
+    pub fn set_master_clock_rate(&self, rate: f64) -> Result<(), Error> {
+        unsafe {
+            SoapySDRDevice_setMasterClockRate(self.ptr, rate);
+            check_error(())
+        }
+    }
 
     // TODO: sensors
 
