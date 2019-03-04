@@ -1,11 +1,11 @@
-use std::fmt;
-use std::slice;
-use std::ptr;
-use std::ffi::{ CStr, CString };
-use std::os::raw::c_char;
-use std::iter::{FromIterator, IntoIterator};
-use std::collections::HashMap;
 use soapysdr_sys::*;
+use std::collections::HashMap;
+use std::ffi::{CStr, CString};
+use std::fmt;
+use std::iter::{FromIterator, IntoIterator};
+use std::os::raw::c_char;
+use std::ptr;
+use std::slice;
 
 /// A list of key=value pairs.
 pub struct Args(SoapySDRKwargs);
@@ -107,7 +107,10 @@ impl Args {
 }
 
 impl<K: Into<Vec<u8>>, V: Into<Vec<u8>>> FromIterator<(K, V)> for Args {
-    fn from_iter<T>(i: T) -> Self where T: IntoIterator<Item=(K, V)> {
+    fn from_iter<T>(i: T) -> Self
+    where
+        T: IntoIterator<Item = (K, V)>,
+    {
         let mut args = Args::new();
         for (k, v) in i {
             args.set(k, v);
@@ -130,14 +133,18 @@ impl<'a> From<&'a str> for Args {
         let mut args = Args::new();
         for i in s.split(",") {
             if let Some(pos) = i.find("=") {
-                args.set(i[..pos].trim(), i[pos+1..].trim());
+                args.set(i[..pos].trim(), i[pos + 1..].trim());
             }
         }
         args
     }
 }
 
-impl<'a, K: ::std::cmp::Eq + ::std::hash::Hash, V> From<&'a HashMap<K, V>> for Args where &'a K: Into<Vec<u8>>, &'a V: Into<Vec<u8>> {
+impl<'a, K: ::std::cmp::Eq + ::std::hash::Hash, V> From<&'a HashMap<K, V>> for Args
+where
+    &'a K: Into<Vec<u8>>,
+    &'a V: Into<Vec<u8>>,
+{
     fn from(m: &'a HashMap<K, V>) -> Args {
         let mut args = Args::new();
         for (k, v) in m {
@@ -147,7 +154,11 @@ impl<'a, K: ::std::cmp::Eq + ::std::hash::Hash, V> From<&'a HashMap<K, V>> for A
     }
 }
 
-impl<'a, K, V> From<&'a [(K, V)]> for Args where &'a K: Into<Vec<u8>>, &'a V: Into<Vec<u8>> {
+impl<'a, K, V> From<&'a [(K, V)]> for Args
+where
+    &'a K: Into<Vec<u8>>,
+    &'a V: Into<Vec<u8>>,
+{
     fn from(m: &'a [(K, V)]) -> Args {
         let mut args = Args::new();
         for &(ref k, ref v) in m {
@@ -158,7 +169,9 @@ impl<'a, K, V> From<&'a [(K, V)]> for Args where &'a K: Into<Vec<u8>>, &'a V: In
 }
 
 impl<'a> From<()> for Args {
-    fn from(_: ()) -> Args { Args::new() }
+    fn from(_: ()) -> Args {
+        Args::new()
+    }
 }
 
 impl<'a> From<&'a Args> for String {
@@ -169,7 +182,9 @@ impl<'a> From<&'a Args> for String {
 
 impl<'a> From<&'a Args> for HashMap<String, String> {
     fn from(a: &'a Args) -> HashMap<String, String> {
-        a.into_iter().map(|(k, v)| (k.to_owned(), v.to_owned())).collect()
+        a.into_iter()
+            .map(|(k, v)| (k.to_owned(), v.to_owned()))
+            .collect()
     }
 }
 
@@ -197,7 +212,11 @@ impl<'a> Iterator for ArgsIterator<'a> {
     fn next(&mut self) -> Option<Self::Item> {
         if self.pos < self.args.0.size {
             let k = self.args.key(self.pos).to_str().unwrap_or("(invalid utf8)");
-            let v = self.args.value(self.pos).to_str().unwrap_or("(invalid utf8)");
+            let v = self
+                .args
+                .value(self.pos)
+                .to_str()
+                .unwrap_or("(invalid utf8)");
             self.pos += 1;
             Some((k, v))
         } else {

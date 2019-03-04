@@ -1,8 +1,8 @@
 use soapysdr_sys::*;
-use std::slice;
-use std::ptr;
 use std::ffi::CStr;
 use std::os::raw::c_char;
+use std::ptr;
+use std::slice;
 
 #[repr(u32)]
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
@@ -56,12 +56,12 @@ unsafe fn optional_string(s: *mut c_char) -> Option<String> {
 #[allow(non_upper_case_globals)]
 pub unsafe fn arg_info_from_c(c: &SoapySDRArgInfo) -> ArgInfo {
     ArgInfo {
-        key:         required_string(c.key),
-        value:       required_string(c.value),
-        name:        optional_string(c.name),
+        key: required_string(c.key),
+        value: required_string(c.value),
+        name: optional_string(c.name),
         description: optional_string(c.description),
-        units:       optional_string(c.units),
-        data_type:   match c.type_ {
+        units: optional_string(c.units),
+        data_type: match c.type_ {
             SoapySDRArgInfoType_SOAPY_SDR_ARG_INFO_BOOL => ArgType::Bool,
             SoapySDRArgInfoType_SOAPY_SDR_ARG_INFO_FLOAT => ArgType::Float,
             SoapySDRArgInfoType_SOAPY_SDR_ARG_INFO_INT => ArgType::Int,
@@ -71,9 +71,11 @@ pub unsafe fn arg_info_from_c(c: &SoapySDRArgInfo) -> ArgInfo {
         options: {
             let option_vals = slice::from_raw_parts(c.options, c.numOptions);
             let option_names = slice::from_raw_parts(c.optionNames, c.numOptions);
-            option_vals.iter().zip(option_names.iter()).map(|(&name, &val)| {
-                (required_string(name), optional_string(val))
-            }).collect()
-        }
+            option_vals
+                .iter()
+                .zip(option_names.iter())
+                .map(|(&name, &val)| (required_string(name), optional_string(val)))
+                .collect()
+        },
     }
 }

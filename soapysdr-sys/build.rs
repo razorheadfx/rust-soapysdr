@@ -5,7 +5,10 @@ use std::env;
 use std::path::PathBuf;
 
 fn main() {
-    if let Err(e) = pkg_config::Config::new().atleast_version("0.6.0").probe("SoapySDR") {
+    if let Err(e) = pkg_config::Config::new()
+        .atleast_version("0.6.0")
+        .probe("SoapySDR")
+    {
         panic!("Couldn't find SoapySDR: {}", e);
     }
 
