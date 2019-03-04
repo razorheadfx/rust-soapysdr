@@ -1,6 +1,5 @@
 extern crate soapysdr;
 extern crate num_complex;
-extern crate byteorder;
 extern crate getopts;
 extern crate signalbool;
 
@@ -10,7 +9,7 @@ use std::fs::File;
 use std::io::{self, BufReader, BufWriter, Read, Write, ErrorKind};
 use std::i64;
 use std::process;
-use byteorder::{ WriteBytesExt, LittleEndian, ByteOrder };
+use std::convert::TryInto;
 use soapysdr::Direction::{Rx, Tx};
 use getopts::Options;
 use num_complex::Complex;
@@ -172,8 +171,12 @@ fn read_cfile<R: Read>(mut src_file: R, dest_buf: &mut [Complex<f32>]) -> io::Re
             }
         }
 
-        sample.re = LittleEndian::read_f32(&tmp[..4]);
-        sample.im = LittleEndian::read_f32(&tmp[4..]);
+        // the stdlib-only conversion path for bytes to f32 is via u32
+        // we take the slice, deref it into a [u8;4] via try_into and convert that to u32
+        // which can e reinterpreted as f32; probably done because it precludes platform
+        // specific behaviour when handling f32s
+        sample.re = f32::from_bits(u32::from_le_bytes(tmp[..4].try_into().unwrap()));
+        sample.im = f32::from_bits(u32::from_le_bytes(tmp[4..].try_into().unwrap()));
         i += 1;
     }
 
@@ -182,8 +185,9 @@ fn read_cfile<R: Read>(mut src_file: R, dest_buf: &mut [Complex<f32>]) -> io::Re
 
 fn write_cfile<W: Write>(src_buf: &[Complex<f32>], mut dest_file: W) -> io::Result<()> {
     for sample in src_buf {
-        dest_file.write_f32::<LittleEndian>(sample.re)?;
-        dest_file.write_f32::<LittleEndian>(sample.im)?;
+        // the conversion path from f32 to le bytes is via u32 as well
+        dest_file.write(&sample.re.to_bits().to_le_bytes())?;
+        dest_file.write(&sample.im.to_bits().to_le_bytes())?;
     }
     Ok(())
 }
