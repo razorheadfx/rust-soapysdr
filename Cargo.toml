@@ -15,20 +15,20 @@ repository = "https://github.com/kevinmehall/rust-soapysdr"
 readme = "README.md"
 
 [dependencies]
-soapysdr-sys = { version = "0.6.0", path = "./soapysdr-sys" }
-libc = "0.2.20"
-num-complex = "0.1.37"
-log = { version = "0.3", optional = true }
+soapysdr-sys = { version = "0.7", path = "./soapysdr-sys" }
+libc = "0.2"
+num-complex = "0.2"
+log = { version = "0.4", optional = true }
 
 # Dependencies used only by binaries
 # (https://github.com/rust-lang/cargo/issues/1982)
 byteorder = { version = "1.1", optional = true }
-getopts = { version = "0.2.4", optional = true }
-signalbool = { version = "0.2.0", optional = true }
+getopts = { version = "0.2", optional = true }
+signalbool = { version = "0.2", optional = true }
 
 [features]
-default = ["log"]
-binaries = ["byteorder", "getopts", "signalbool"]
+default = ["log","binaries"]
+binaries = ["getopts", "signalbool"]
 
 [[bin]]
 name = "soapy-sdr-info"
