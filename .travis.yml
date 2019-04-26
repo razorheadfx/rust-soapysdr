@@ -12,8 +12,8 @@ addons:
       - sourceline: ppa:myriadrf/drivers
     packages:
       - libsoapysdr-dev
-      - llvm-3.5-dev
-      - libclang-3.5-dev
+      - llvm-3.9-dev
+      - libclang-3.9-dev
 
 before_script:
   - dpkg -l libsoapysdr-dev
