@@ -2,10 +2,10 @@ language: rust
 rust:
   - stable
   - beta
-
-dist: trusty
+dist:
+  - xenial
+  - bionic
 sudo: required
-
 addons:
   apt:
     sources:
@@ -14,9 +14,16 @@ addons:
       - libsoapysdr-dev
       - llvm-3.9-dev
       - libclang-3.9-dev
-
 before_script:
   - dpkg -l libsoapysdr-dev
   - dpkg -L libsoapysdr-dev
-
+  - rustup component add rustfmt
 cache: cargo
+env:
+  matrix:
+    - FEATURES='binaries'
+    - FEATURES='default'
+script:
+  - cargo fmt --all -- --check
+  - cargo build --verbose --all-targets --no-default-features --features "$FEATURES"
+  - cargo test  --verbose --all --no-default-features --features "$FEATURES"
