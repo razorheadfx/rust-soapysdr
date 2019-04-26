@@ -6,7 +6,7 @@ use std::path::PathBuf;
 
 fn main() {
     if let Err(e) = pkg_config::Config::new()
-        .atleast_version("0.6.0")
+        .atleast_version("0.7.0")
         .probe("SoapySDR")
     {
         panic!("Couldn't find SoapySDR: {}", e);
@@ -20,6 +20,6 @@ fn main() {
 
     let out_path = PathBuf::from(env::var("OUT_DIR").unwrap());
     bindings
-        .write_to_file(out_path.join("bindings.rs"))
+        .write_to_file(out_path.join("soapy_bindings.rs"))
         .expect("Couldn't write bindings!");
 }
